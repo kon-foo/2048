@@ -172,7 +172,7 @@ class DQNAgent(Agent):
         self.optimizer.zero_grad()
         # Compute gradients
         loss.backward()
-        
+
         # Gradient clipping
         torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=1.0)    
         # torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 1.0)  
@@ -254,6 +254,7 @@ class DQNAgent(Agent):
             print(f"% Done:{' ' * (label_width - len('% Done'))} {(self.live_move_count_across_games / self.config.moves_to_play) * 100:>10.1f}")
             print("-" * (label_width))
             print(f"Average Loss:{' ' * (label_width - len('Average Loss'))} {self.metrics.average_loss:>10.3f}")
+            print(f"Avg Score:{' ' * (label_width - len('Avg Score'))} {self.metrics.avg_score:>10.3f}")
             print(f"Max Score:{' ' * (label_width - len('Max Score'))} {self.metrics.max_score:>10}")
             print(f"Max Tile:{' ' * (label_width - len('Max Tile'))} {self.metrics.max_tile:>10}")
             print(f"Avg Moves:{' ' * (label_width - len('Avg Moves'))} {self.metrics.avg_moves:>10.3f}")
