@@ -7,5 +7,5 @@ class Visualizer(ABC):
         pass
 
     @abstractmethod
-    def render(self, state: GameState, move_idx: int):
+    def render(self, state: GameState):
         pass

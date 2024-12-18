@@ -42,19 +42,16 @@ class ConsoleVisualizer(Visualizer):
         color_start, color_end = self.COLORS.get(value, ('', ''))
         return f"{color_start}{value:>5}{color_end}"
     
-    def render(self, state: GameState, move_idx: int, metadata: dict[str, any] = {} ) -> None:
+    def render(self, state: GameState, metadata: dict[str, any] = {} ) -> None:
         """Render the current game state to the console"""
         self.clear_screen()
         
         # Print header with game info
         print("\n" + "=" * 40)
         print(f"Move: {state.move_count:<5} Score: {state.score:<10}")
-        try:
-            last_move = state.performed_moves[move_idx]
-        except IndexError:
-            last_move = None
-        if last_move is not None:
-            print(f"Last Move: {last_move.name}")
+        if state.last_move is not None:
+            print(f"Last Move: {state.last_move.name}")
+            print(f"Invalid Moves: {state.invalid_move_count}")
         # Print metadata if available
         for key, value in metadata.items():
             # Truncate long values

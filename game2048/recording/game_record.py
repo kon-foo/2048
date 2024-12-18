@@ -27,6 +27,10 @@ class GameRecord(BaseModel):
     def move_count(self) -> int:
         return self.last_state.move_count
     
+    @property
+    def invalid_move_count(self) -> int:
+        return self.last_state.invalid_move_count
+    
 
     def save(self, base_path: str = "recordings", filename: str = None):
         """

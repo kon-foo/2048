@@ -20,10 +20,11 @@ class GameState(BaseModel):
     game_over: bool = False    
     performed_moves: List[Move] = []
     move_count: int = 0
+    invalid_move_count: int = 0
 
     @property
     def last_move(self) -> Optional[Move]:
-        return self.performed_moves[self.move_count - 1] if self.move_count > 0 else None
+        return self.performed_moves[self.move_count -1] if self.move_count > 0 else None
 
     @field_serializer('board')
     def serialize_board(self, board: List[array], _info):
@@ -164,23 +165,27 @@ class Game2048:
             raise ValueError("Invalid move")
 
         next_board, score_gained = self._get_next_board_state(self.state, move)
+
+        ## Update move stats early, in case the move is invalid
+        self.state.performed_moves.append(move)   
+        self.state.move_count += 1     
         
         if all(next_board[i][j] == self.state.board[i][j] 
                 for i in range(self.size) 
                 for j in range(self.size)):
             ## if the board is the same after the move, return False and 0
+            self.state.invalid_move_count += 1
             return False, 0
+
+        ## Update the board and score late because only needed if the move is valid
+        self.state.board = next_board
+        self.state.score += score_gained        
             
         # Update empty cells set
         self.empty_cells = set(
             (i, j) for i in range(self.size) 
             for j in range(self.size) if next_board[i][j] == 0
         )
-        
-        self.state.board = next_board
-        self.state.score += score_gained
-        self.state.performed_moves.append(move)
-        self.state.move_count += 1
         
         # Add a new tile after successful move
         tile_added = self._add_new_tile(self.state)

@@ -6,7 +6,7 @@ from typing import List, Optional
 import numpy as np
 from collections import deque
 
-from ..base_agent import Agent
+from ..base_agent import Agent, AgentMetrics
 from game2048 import Move, GameState
 from .dqn import PrioritizedExperienceBuffer, ExperienceBuffer, BiasedExperienceBuffer
 
@@ -28,6 +28,19 @@ class DQNAgentConfig(BaseModel):
     optim_lr: float = 0.001
     gamma: float = 0.99
 
+class DQNAgentMetrics(AgentMetrics):
+    """
+    Metrics for a DQNAgent.
+    """
+    losses: deque[float] = deque(maxlen=1000)
+
+    @property
+    def average_loss(self) -> float:
+        """
+        Return the average loss.
+        """
+        return sum(self.losses) / len(self.losses)
+
 
 class DQNAgent(Agent):
     """
@@ -45,6 +58,7 @@ class DQNAgent(Agent):
         self.id = id
         self.generation = generation
         self.config = config
+        self.metrics = DQNAgentMetrics()
 
         ## Training specific attributes
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -56,8 +70,8 @@ class DQNAgent(Agent):
         # self.memory = PrioritizedExperienceBuffer(capacity=config.memory_capacity, invalid_move_ratio=0.2)
 
         ## Variables
-        self.games_played = 0
-        self.move_across_games = 0   
+        # A live move count is necessary, because the self.metrics.moves_played is only updated after each game.
+        self.live_move_count_across_games = 0   
         self.current_board_as_tensor = None
         # Do-not-make-the-same-mistake-twice policy
         self.previous_move_valid: bool = True
@@ -140,13 +154,13 @@ class DQNAgent(Agent):
             expected_q_values = expected_q_values - expected_q_values.mean()
             expected_q_values = expected_q_values / (expected_q_values.std() + 1e-8)                     
 
-            if self.move_across_games % (self.config.training_frequency * self.config.target_update_frequency_as_a_multiple_of_training) == 0:
-                print(f"Q-values min: {current_q_values.min().item():.2f}, "
-                    f"max: {current_q_values.max().item():.2f}, "
-                    f"mean: {current_q_values.mean().item():.2f}")
-                print(f"Expected Q-values min: {expected_q_values.min().item():.2f}, "
-                    f"max: {expected_q_values.max().item():.2f}, "
-                    f"mean: {expected_q_values.mean().item():.2f}")    
+            # if self.live_move_count_across_games % (self.config.training_frequency * self.config.target_update_frequency_as_a_multiple_of_training) == 0:
+            #     print(f"Q-values min: {current_q_values.min().item():.2f}, "
+            #         f"max: {current_q_values.max().item():.2f}, "
+            #         f"mean: {current_q_values.mean().item():.2f}")
+            #     print(f"Expected Q-values min: {expected_q_values.min().item():.2f}, "
+            #         f"max: {expected_q_values.max().item():.2f}, "
+            #         f"mean: {expected_q_values.mean().item():.2f}")    
                    
         
         loss = torch.nn.MSELoss()(current_q_values.squeeze(), expected_q_values)
@@ -205,7 +219,7 @@ class DQNAgent(Agent):
         """
         After a move, calculate the reward, store the transition in memory and train the network.
         """
-        self.move_across_games += 1
+        self.live_move_count_across_games += 1
         reward = self._calculate_reward(move_valid, score_gained)
         board_after_move_as_tensor = self._game_board_to_tensor(self.game.state.board)
         if self.current_board_as_tensor is not None:
@@ -215,21 +229,32 @@ class DQNAgent(Agent):
                             board_after_move_as_tensor,
                             torch.tensor(game_over, dtype=torch.float32).to(self.device))
         self.current_board_as_tensor = board_after_move_as_tensor
-        if self.move_across_games % self.config.training_frequency == 0:
+        if self.live_move_count_across_games % self.config.training_frequency == 0:
             loss = self.train()
             if loss is not None:
-                self.losses.append(loss)
-        if self.move_across_games % (self.config.training_frequency * self.config.target_update_frequency_as_a_multiple_of_training) == 0:
+                self.metrics.losses.append(loss)
+        if self.live_move_count_across_games % (self.config.training_frequency * self.config.target_update_frequency_as_a_multiple_of_training) == 0:
             ## Hard update
             # self.target_net.load_state_dict(self.policy_net.state_dict())
             ## Soft update
             tau = 0.001
             for target_param, policy_param in zip(self.target_net.parameters(), self.policy_net.parameters()):
                 target_param.data.copy_(tau * policy_param.data + (1 - tau) * target_param.data)            
-            avg_loss = sum(self.losses) / len(self.losses)
-            print(f"Average loss: {avg_loss:.2f}")  
-            print(f"Games played: {self.games_played}")
-            print(f"")
+            label_width = max(len(label) for label in [
+                "Game", "Average Loss", "Total Moves", "Max Score", 
+                "Max Tile", "Avg Moves", "Invalid Move Ratio"
+            ])
+
+            # Print statements with dynamic alignment
+            print("-" * (label_width))
+            print(f"Game:{' ' * (label_width - len('Game'))} {self.metrics.games_played:>10}")
+            print(f"Total Moves:{' ' * (label_width - len('Total Moves'))} {self.live_move_count_across_games:>10}")
+            print(f"Average Loss:{' ' * (label_width - len('Average Loss'))} {self.metrics.average_loss:>10.3f}")
+            print(f"Max Score:{' ' * (label_width - len('Max Score'))} {self.metrics.max_score:>10}")
+            print(f"Max Tile:{' ' * (label_width - len('Max Tile'))} {self.metrics.max_tile:>10}")
+            print(f"Avg Moves:{' ' * (label_width - len('Avg Moves'))} {self.metrics.avg_moves:>10.3f}")
+            print(f"Invalid Move Ratio:{' ' * (label_width - len('Invalid Move Ratio'))} {self.metrics.invalid_move_ratio:>10.3f}")
+            print("\n")
 
     def _after_game_init(self):
         """
@@ -244,14 +269,12 @@ class DQNAgent(Agent):
         Play config.games_to_play games. Reduce epsilon after each game.
         """
         best_score = 0
-        while self.move_across_games < self.config.moves_to_play:
+        while self.live_move_count_across_games < self.config.moves_to_play:
             record = self.play(max_rounds=1000)
-            self.games_played += 1
             if record.score > best_score:
                 best_score = record.score
                 record.save(base_path=self.save_base_path)
                 # Save current model
                 self.save(filename=f"{self.name}_best.pt")
-                print(f"New best score: {best_score}")
             ## update epsilon based on how many moves of the total moves have been played
-            self.epsilon = max(self.config.epsilon_final, self.config.epsilon_initial - (self.config.epsilon_initial - self.config.epsilon_final) * self.move_across_games / self.config.moves_to_play)
+            self.epsilon = max(self.config.epsilon_final, self.config.epsilon_initial - (self.config.epsilon_initial - self.config.epsilon_final) * self.live_move_count_across_games / self.config.moves_to_play)
