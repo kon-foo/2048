@@ -11,7 +11,7 @@ config = DQNAgentConfig(
     memory_capacity=10000,
     memory_batch_size=128,
     optim_lr=0.001,
-    gamma=0.9
+    gamma=0.99
 )
 
 
