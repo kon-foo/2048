@@ -18,8 +18,7 @@ class DQNAgentConfig(BaseModel):
     """
     epsilon_initial: float = 1.0
     epsilon_final: float = 0.1
-    # TODO: Switch to moves to play for more consistency
-    games_to_play: int = 10
+    moves_to_play: int = 2000 # This is no hard limit, but the agent will stop after the first game that exceeds this number of moves.
     invalid_move_penalty: float = -1.0
 
     training_frequency: int = 64 # After how many moves to train
@@ -103,8 +102,8 @@ class DQNAgent(Agent):
         if not valid_move:
             return self.config.invalid_move_penalty
         # Scale down the rewards to be more comparable
-        # return 0.1 * np.log2(score_gained) if score_gained > 0 else 0
-        return np.log2(score_gained) if score_gained > 0 else 0
+        return 0.1 * np.log2(score_gained) if score_gained > 0 else 0
+        # return np.log2(score_gained) if score_gained > 0 else 0
 
     def train(self):
         """
@@ -245,7 +244,7 @@ class DQNAgent(Agent):
         Play config.games_to_play games. Reduce epsilon after each game.
         """
         best_score = 0
-        for round in range(self.config.games_to_play):
+        while self.move_across_games < self.config.moves_to_play:
             record = self.play(max_rounds=1000)
             self.games_played += 1
             if record.score > best_score:
@@ -254,5 +253,5 @@ class DQNAgent(Agent):
                 # Save current model
                 self.save(filename=f"{self.name}_best.pt")
                 print(f"New best score: {best_score}")
-            self.epsilon = max(self.config.epsilon_final, self.epsilon - (self.config.epsilon_initial - self.config.epsilon_final) / self.config.games_to_play)
-
+            ## update epsilon based on how many moves of the total moves have been played
+            self.epsilon = max(self.config.epsilon_final, self.config.epsilon_initial - (self.config.epsilon_initial - self.config.epsilon_final) * self.move_across_games / self.config.moves_to_play)
