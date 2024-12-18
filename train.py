@@ -24,7 +24,7 @@ if __name__ == "__main__":
     config = DQNAgentConfig(
         games_to_play=10000,
         epsilon_initial=0.9,
-        invalid_move_penalty=-32.0,
+        invalid_move_penalty=-8.0,
         training_frequency=128,
         memory_batch_size=128,
         optim_lr=0.001,
