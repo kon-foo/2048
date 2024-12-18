@@ -118,8 +118,8 @@ class DQNAgent(Agent):
         if not valid_move:
             return self.config.invalid_move_penalty
         # Scale down the rewards to be more comparable
-        return 0.1 * np.log2(score_gained) if score_gained > 0 else 0
-        # return np.log2(score_gained) if score_gained > 0 else 0
+        # return 0.1 * np.log2(score_gained) if score_gained > 0 else 0
+        return np.log2(score_gained) if score_gained > 0 else 0
 
     def train(self):
         """
@@ -148,9 +148,9 @@ class DQNAgent(Agent):
             expected_q_values = rewards + (self.config.gamma * max_next_q_values * (1 - dones))    
 
             # ## Double Q-value
-            next_actions = self.policy_net(next_states).argmax(1, keepdim=True)
-            next_q_values = self.target_net(next_states).gather(1, next_actions)
-            expected_q_values = rewards + (self.config.gamma * next_q_values.squeeze() * (1 - dones))
+            # next_actions = self.policy_net(next_states).argmax(1, keepdim=True)
+            # next_q_values = self.target_net(next_states).gather(1, next_actions)
+            # expected_q_values = rewards + (self.config.gamma * next_q_values.squeeze() * (1 - dones))
 
              
             ## Q-Value Normalization
@@ -167,12 +167,12 @@ class DQNAgent(Agent):
                    
         
         loss = torch.nn.MSELoss()(current_q_values.squeeze(), expected_q_values)
-        # Clip gradients
 
         # Clear previous gradients
         self.optimizer.zero_grad()
         # Compute gradients
         loss.backward()
+        
         # Gradient clipping
         torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=1.0)    
         # torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 1.0)  
