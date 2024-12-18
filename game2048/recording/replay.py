@@ -45,7 +45,7 @@ class Player:
 
         while True:
             current_state = self.all_states[self.current_index]
-            self.visualizer.render(current_state)
+            self.visualizer.render(current_state, move_idx=self.current_index - 1)
 
             # Handle user input if manual mode is enabled
             if self.manual:
