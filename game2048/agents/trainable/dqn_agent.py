@@ -165,7 +165,8 @@ class DQNAgent(Agent):
             #         f"max: {expected_q_values.max().item():.2f}, "
             #         f"mean: {expected_q_values.mean().item():.2f}")    
                    
-        
+        ## Huber loss
+        # loss = torch.nn.HuberLoss(delta=1.0)(current_q_values.squeeze(), expected_q_values)
         loss = torch.nn.MSELoss()(current_q_values.squeeze(), expected_q_values)
 
         # Clear previous gradients
