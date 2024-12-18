@@ -4,7 +4,7 @@ from torch import nn
 config = DQNAgentConfig(
     epsilon_initial=0.9,
     epsilon_final=0.1,
-    moves_to_play=200000,
+    moves_to_play=1500000,
     invalid_move_penalty=-8.0,
     training_frequency=128,
     target_update_frequency_as_a_multiple_of_training=100,
