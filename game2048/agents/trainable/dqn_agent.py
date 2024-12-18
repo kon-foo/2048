@@ -5,6 +5,7 @@ from array import array
 from typing import List, Optional
 import numpy as np
 import csv
+from pathlib import Path
 from collections import deque
 
 from ..base_agent import Agent, AgentMetrics
@@ -147,9 +148,10 @@ class DQNAgent(Agent):
             expected_q_values = rewards + (self.config.gamma * max_next_q_values * (1 - dones))    
 
             # ## Double Q-value
-            # next_actions = self.policy_net(next_states).argmax(1, keepdim=True)
-            # next_q_values = self.target_net(next_states).gather(1, next_actions)
-            # expected_q_values = rewards + (self.config.gamma * next_q_values.squeeze()   
+            next_actions = self.policy_net(next_states).argmax(1, keepdim=True)
+            next_q_values = self.target_net(next_states).gather(1, next_actions)
+            expected_q_values = rewards + (self.config.gamma * next_q_values.squeeze() * (1 - dones))
+
              
             ## Q-Value Normalization
             expected_q_values = expected_q_values - expected_q_values.mean()
@@ -280,7 +282,9 @@ class DQNAgent(Agent):
                 self.save(filename=f"{self.name}_best.pt")
             ## update epsilon based on how many moves of the total moves have been played
             self.epsilon = max(self.config.epsilon_final, self.config.epsilon_initial - (self.config.epsilon_initial - self.config.epsilon_final) * self.live_move_count_across_games / self.config.moves_to_play)
-        with open(f"{self.save_base_path}/metrics/{self.name}_metrics.csv", mode='w') as file:
+        out_path = Path(f"{self.save_base_path}/metrics")
+        out_path.mkdir(parents=True, exist_ok=True)
+        with open(out_path/f"{self.name}_metrics.csv", mode='w') as file:
             writer = csv.writer(file)
             writer.writerow(["Name", "Avg. Loss", "Max Score", "Avg. Score", "Max Tile", "Avg. Max Tile", "Avg. Moves", "Invalid Move Ratio"])
             writer.writerow([self.name, self.metrics.average_loss, self.metrics.max_score, self.metrics.avg_score, self.metrics.max_tile, self.metrics.avg_max_tile, self.metrics.avg_moves, self.metrics.invalid_move_ratio])
