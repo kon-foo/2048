@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "game2048"
+version = "0.1.0"
+description = ""
+authors = ["kon-foo <25391223+kon-foo@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+torch = "^2.5.1"
+pydantic = "^2.10.3"
+numpy = "^2.2.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
