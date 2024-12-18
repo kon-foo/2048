@@ -4,6 +4,7 @@ import random
 from array import array
 from typing import List, Optional
 import numpy as np
+import csv
 from collections import deque
 
 from ..base_agent import Agent, AgentMetrics
@@ -248,7 +249,8 @@ class DQNAgent(Agent):
             # Print statements with dynamic alignment
             print("-" * (label_width))
             print(f"Game:{' ' * (label_width - len('Game'))} {self.metrics.games_played:>10}")
-            print(f"Total Moves:{' ' * (label_width - len('Total Moves'))} {self.live_move_count_across_games:>10}")
+            print(f"% Done:{' ' * (label_width - len('% Done'))} {(self.live_move_count_across_games / self.config.moves_to_play) * 100:>10.1f}")
+            print("-" * (label_width))
             print(f"Average Loss:{' ' * (label_width - len('Average Loss'))} {self.metrics.average_loss:>10.3f}")
             print(f"Max Score:{' ' * (label_width - len('Max Score'))} {self.metrics.max_score:>10}")
             print(f"Max Tile:{' ' * (label_width - len('Max Tile'))} {self.metrics.max_tile:>10}")
@@ -278,3 +280,7 @@ class DQNAgent(Agent):
                 self.save(filename=f"{self.name}_best.pt")
             ## update epsilon based on how many moves of the total moves have been played
             self.epsilon = max(self.config.epsilon_final, self.config.epsilon_initial - (self.config.epsilon_initial - self.config.epsilon_final) * self.live_move_count_across_games / self.config.moves_to_play)
+        with open(f"{self.save_base_path}/metrics/{self.name}_metrics.csv", mode='w') as file:
+            writer = csv.writer(file)
+            writer.writerow(["Name", "Avg. Loss", "Max Score", "Avg. Score", "Max Tile", "Avg. Max Tile", "Avg. Moves", "Invalid Move Ratio"])
+            writer.writerow([self.name, self.metrics.average_loss, self.metrics.max_score, self.metrics.avg_score, self.metrics.max_tile, self.metrics.avg_max_tile, self.metrics.avg_moves, self.metrics.invalid_move_ratio])
