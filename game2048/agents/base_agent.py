@@ -13,7 +13,7 @@ class AgentMetrics:
 
     ## Scores
     @property
-    def average_score(self):
+    def avg_score(self):
         return sum(self.scores) / self.games_played if self.scores and self.games_played > 0 else 0
     
     @property
