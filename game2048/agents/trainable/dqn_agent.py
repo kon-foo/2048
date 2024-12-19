@@ -276,7 +276,7 @@ class DQNAgent(Agent):
 
             # Print statements with dynamic alignment
             print("-" * 20)
-            print(f"% Done:{' ' * 20} {(self.live_move_count_across_games / self.config.moves_to_play) * 100:>10.1f}")
+            print(f"% Done:{' ' * 7} {(self.live_move_count_across_games / self.config.moves_to_play) * 100:>10.1f}")
             print(f"{self.metrics:short}")
             print("\n")
 
