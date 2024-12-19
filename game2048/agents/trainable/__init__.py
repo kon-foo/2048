@@ -1,1 +1,1 @@
-from .dqn_agent import DQNAgent, DQNAgentConfig
+from .dqn_agent import DQNAgent, DQNAgentConfig, DQNAgentMetrics
