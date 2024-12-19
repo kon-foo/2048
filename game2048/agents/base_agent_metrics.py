@@ -152,6 +152,6 @@ class AgentMetrics:
     
     def __format__(self, format_spec):
         if format_spec == "short":
-            return f"Games Played: {self.games_played}\nAvg Score:    {self.avg_score:.2f}\nAvg Moves:    {self.avg_moves:.2f}\nTotal IMR:    {self.total_invalid_move_ratio:.2f}\nMin IMR:      {self.min_invalid_move_ratio:.2f}\n"
+            return f"Games Played: {self.games_played}\n--------------------\nAvg Score:    {self.avg_score:.2f}\nAvg Moves:    {self.avg_moves:.2f}\nTotal IMR:    {self.total_invalid_move_ratio:.2f}\nMin IMR:      {self.min_invalid_move_ratio:.2f}\n"
         else:
             return self.__str__()
