@@ -32,7 +32,7 @@ class GameRecord(BaseModel):
         return self.last_state.invalid_move_count
     
 
-    def save(self, base_path: str = "recordings", filename: str = None):
+    def save(self, base_path: str = "results/recordings", filename: str = None):
         """
         Save the record to a file.
         """
