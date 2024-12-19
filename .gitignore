@@ -1,7 +1,7 @@
 venv
 __pycache__
 .env
-recordings
+results
 train.py
 test.csv
 teststuff.py

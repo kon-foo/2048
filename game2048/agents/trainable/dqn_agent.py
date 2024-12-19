@@ -7,10 +7,11 @@ import numpy as np
 import csv
 from pathlib import Path
 from collections import deque
+from dataclasses import dataclass
 
 from ..base_agent import Agent, AgentMetrics
 from game2048 import Move, GameState
-from .dqn import PrioritizedExperienceBuffer, ExperienceBuffer, BiasedExperienceBuffer
+from .memory import PrioritizedExperienceBuffer, ExperienceBuffer, BiasedExperienceBuffer
 
 from game2048.visualize import ConsoleVisualizer
 
@@ -30,18 +31,25 @@ class DQNAgentConfig(BaseModel):
     optim_lr: float = 0.001
     gamma: float = 0.99
 
+@dataclass
 class DQNAgentMetrics(AgentMetrics):
     """
     Metrics for a DQNAgent.
     """
     losses: deque[float] = deque(maxlen=1000)
 
+    def __post_init__(self):
+        self._default_ignored_fields_and_properties.add('losses')
+
     @property
     def average_loss(self) -> float:
         """
         Return the average loss.
         """
-        return sum(self.losses) / len(self.losses)
+        return sum(self.losses) / len(self.losses) if self.losses else 0
+
+    def __format__(self, format_spec):
+        return super().__format__(format_spec) + f"Avg. Loss:    {self.average_loss:.3f}"
 
 
 class DQNAgent(Agent):
@@ -52,17 +60,20 @@ class DQNAgent(Agent):
     def __init__(self, 
                  config: DQNAgentConfig, 
                  network_class: torch.nn.Module,
-                 generation: int = 0, id: str = "0"):
+                 generation: int = 0, id: str = "0",
+                 **kwargs,
+                 ):
         """
         Initialize the agent.
         """
-        super().__init__()
+        super().__init__(**kwargs)
         self.id = id
         self.generation = generation
         self.config = config
         self.metrics = DQNAgentMetrics()
 
         ## Training specific attributes
+        self.save_model_path = self.save_base_path + "/models"
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.target_net = network_class().to(self.device)
         self.policy_net = network_class().to(self.device)
@@ -184,18 +195,20 @@ class DQNAgent(Agent):
 
         return loss.item()        
 
-    def save(self, filename: Optional[str] = None):
+    def save_model(self, filename: Optional[str] = None):
         """
         Save NN weights and optimizer state to a file.
         """
         if filename is None:
-            filename = f"{self.name}.pt"
+            filename = f"{self.name}_latest.pt"
+        ## create dir if it doesn't exist
+        Path(self.save_model_path).mkdir(parents=True, exist_ok=True)
         torch.save({
             'policy_net': self.policy_net.state_dict(),
             'target_net': self.target_net.state_dict(),
             'optimizer': self.optimizer.state_dict(),
             'config': self.config.model_dump()}
-            , f"{self.save_base_path}/{filename}")
+            , f"{self.save_model_path}/{filename}")
 
     
 
@@ -244,22 +257,11 @@ class DQNAgent(Agent):
             tau = 0.001
             for target_param, policy_param in zip(self.target_net.parameters(), self.policy_net.parameters()):
                 target_param.data.copy_(tau * policy_param.data + (1 - tau) * target_param.data)            
-            label_width = max(len(label) for label in [
-                "Game", "Average Loss", "Total Moves", "Max Score", 
-                "Max Tile", "Avg Moves", "Invalid Move Ratio"
-            ])
 
             # Print statements with dynamic alignment
-            print("-" * (label_width))
-            print(f"Game:{' ' * (label_width - len('Game'))} {self.metrics.games_played:>10}")
-            print(f"% Done:{' ' * (label_width - len('% Done'))} {(self.live_move_count_across_games / self.config.moves_to_play) * 100:>10.1f}")
-            print("-" * (label_width))
-            print(f"Average Loss:{' ' * (label_width - len('Average Loss'))} {self.metrics.average_loss:>10.3f}")
-            print(f"Avg Score:{' ' * (label_width - len('Avg Score'))} {self.metrics.avg_score:>10.3f}")
-            print(f"Max Score:{' ' * (label_width - len('Max Score'))} {self.metrics.max_score:>10}")
-            print(f"Max Tile:{' ' * (label_width - len('Max Tile'))} {self.metrics.max_tile:>10}")
-            print(f"Avg Moves:{' ' * (label_width - len('Avg Moves'))} {self.metrics.avg_moves:>10.3f}")
-            print(f"Invalid Move Ratio:{' ' * (label_width - len('Invalid Move Ratio'))} {self.metrics.invalid_move_ratio:>10.3f}")
+            print("-" * 20)
+            print(f"% Done:{' ' * 20} {(self.live_move_count_across_games / self.config.moves_to_play) * 100:>10.1f}")
+            print(f"{self.metrics:short}")
             print("\n")
 
     def _after_game_init(self):
@@ -276,17 +278,12 @@ class DQNAgent(Agent):
         """
         best_score = 0
         while self.live_move_count_across_games < self.config.moves_to_play:
-            record = self.play(max_rounds=1000)
-            if record.score > best_score:
+            record = self.play(max_rounds=1000, save_recording=False)
+            if record.score > best_score and record.score > 3000:
                 best_score = record.score
-                record.save(base_path=self.save_base_path)
+                self.save_recording(record)
                 # Save current model
-                self.save(filename=f"{self.name}_best.pt")
+                self.save_model(filename=f"{self.name}_best.pt")
             ## update epsilon based on how many moves of the total moves have been played
             self.epsilon = max(self.config.epsilon_final, self.config.epsilon_initial - (self.config.epsilon_initial - self.config.epsilon_final) * self.live_move_count_across_games / self.config.moves_to_play)
-        out_path = Path(f"{self.save_base_path}/metrics")
-        out_path.mkdir(parents=True, exist_ok=True)
-        with open(out_path/f"{self.name}_metrics.csv", mode='w') as file:
-            writer = csv.writer(file)
-            writer.writerow(["Name", "Avg. Loss", "Max Score", "Avg. Score", "Max Tile", "Avg. Max Tile", "Avg. Moves", "Invalid Move Ratio"])
-            writer.writerow([self.name, self.metrics.average_loss, self.metrics.max_score, self.metrics.avg_score, self.metrics.max_tile, self.metrics.avg_max_tile, self.metrics.avg_moves, self.metrics.invalid_move_ratio])
+        self.save_metrics()
