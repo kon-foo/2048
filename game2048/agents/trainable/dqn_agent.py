@@ -109,6 +109,22 @@ class DQNAgent(Agent):
         self.target_net.load_state_dict(state_dict['target_net'])
         self.optimizer.load_state_dict(state_dict['optimizer'])
 
+
+    def load_model(self, file_path: str, load_config: bool = False):
+        """
+        Load NN weights and optimizer state from a file.
+        """
+        try:
+            checkpoint = torch.load(file_path, weights_only=False)
+            self.initialize_networks(checkpoint)
+            print(f"Loaded model from {file_path}") 
+            if load_config:
+                self.config = DQNAgentConfig(**checkpoint['config'])
+                print(f"Loaded config from {file_path}")
+        except Exception as e:
+            print(f"Error loading model from {file_path}: {e}")
+
+
     def _game_board_to_tensor(self, board: List[array]) -> torch.Tensor:
         """
             Convert board to neural network input using numpy intermediary. Applies a log2 transformation to normalize the values.
